@@ -351,8 +351,3 @@ SPECTACULAR_SETTINGS = {
 }
 # Your stuff...
 # ------------------------------------------------------------------------------
-
-if DEPLOYMENT_ENVIRONMENT == "prod":
-    DEFAULT_FILE_STORAGE = 'config.storage_backends.MediaStorage'
-else:
-    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
