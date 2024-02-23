@@ -223,4 +223,3 @@ SPECTACULAR_SETTINGS["SERVERS"] = [  # noqa: F405
 ]
 # Your stuff...
 # ------------------------------------------------------------------------------
-DEFAULT_FILE_STORAGE = 'config.storage_backends.MediaStorage'
