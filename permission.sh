@@ -10,4 +10,3 @@ sudo usermod -a -G jenkins www-data
 sudo chmod 775 /var/lib/jenkins/workspace/HHT
 sudo chmod 775 -R /var/lib/jenkins/workspace/HHT/
 sudo chmod 770 -R /var/lib/jenkins/workspace/HHT/app
-#sudo chmod 770 -R /var/lib/jenkins/workspace/HHT/staticfiles

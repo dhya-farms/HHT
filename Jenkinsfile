@@ -25,6 +25,14 @@ pipeline {
                 '''
             }
         }
+        stage('Giving staticfiles Permissions') {
+            steps {
+                sh '''
+                chmod +x staticfiles_permission.sh
+                ./staticfiles_permission.sh
+                '''
+            }
+        }
         stage('Setup Supervisor Setup') {
             steps {
                 sh '''
