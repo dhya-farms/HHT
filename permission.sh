@@ -7,7 +7,7 @@ sudo usermod -a -G jenkins www-data
 
 # Change the group ownership of the project directory and its contents to 'nginx'
 
-sudo chmod 775 /var/lib/jenkins/workspace/METRO
-sudo chmod 775 -R /var/lib/jenkins/workspace/METRO/
-sudo chmod 770 -R /var/lib/jenkins/workspace/METRO/app
-#sudo chmod 770 -R /var/lib/jenkins/workspace/METRO/staticfiles
+sudo chmod 775 /var/lib/jenkins/workspace/HHT
+sudo chmod 775 -R /var/lib/jenkins/workspace/HHT/
+sudo chmod 770 -R /var/lib/jenkins/workspace/HHT/app
+#sudo chmod 770 -R /var/lib/jenkins/workspace/HHT/staticfiles
