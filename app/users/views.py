@@ -129,7 +129,7 @@ class OtpLoginViewSet(viewsets.ViewSet):
             auth_token = user.auth_token
             response = Response(data={
                 "message": "successfully logged in",
-                "user_id": user.id,
+                "user": UserSerializer(user).data,
                 "token": auth_token.key},
                 status=status.HTTP_200_OK)
             return response
