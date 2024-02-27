@@ -1,19 +1,156 @@
-from django.contrib.auth import get_user_model
+import random
+
+from django.conf import settings
+from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.core.cache import cache
+from django.http import JsonResponse
 from django.urls import reverse
-from django.utils.translation import gettext_lazy as _
-from django.views.generic import DetailView, RedirectView, UpdateView
+from django.utils import timezone
+from django.views.generic import DetailView, UpdateView, RedirectView
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+from rest_framework import viewsets, status
+from rest_framework.authtoken.models import Token
 from rest_framework.decorators import action
-
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.response import Response
 from app.users.controllers import UserController
-from app.users.schemas import UserCreateSchema, UserListSchema, UserUpdateSchema
+from app.users.enums import Role
+from app.users.schemas import UserCreateSchema, UserUpdateSchema, UserListSchema
 from app.users.serializers import UserSerializer
-from app.utils.constants import CacheKeys
+from app.utils.constants import Timeouts, CacheKeys, SMS
+from app.utils.helpers import mobile_number_validation_check, qdict_to_dict, \
+    generate_random_username, build_cache_key
 from app.utils.views import BaseViewSet
 
 User = get_user_model()
+
+
+class OtpLoginViewSet(viewsets.ViewSet):
+
+    @extend_schema(
+        description="Generates OTP for the provided mobile number and sends it via SMS.",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample('Example JSON', value={"mobile_no": "1234567890"})
+        ]
+    )
+    @action(methods=["POST"], detail=False)
+    def generate(self, request):
+        # this api does not need auth token
+        # Generate otp, store it in cache, send sms using yellow.ai
+        # request_body : {"mobile_no"}
+
+        mobile_no = request.data.get('mobile_no', None)
+        mobile_no_valid = mobile_number_validation_check(mobile_no)
+        if mobile_no_valid is not None:
+            return Response(data={"message": mobile_no_valid}, status=status.HTTP_400_BAD_REQUEST)
+
+        mobile_no = str(mobile_no)
+
+        static_otp_mobile_numbers = ['9344015965', '8971165979', '7013991532', '9959727836', '1414141414',
+                                     '8858327030']  # can keep the numbers in .env file
+        if mobile_no in static_otp_mobile_numbers:
+            otp = "1111"
+        else:
+            otp = str(random.randint(1000, 9999))
+        if settings.DEBUG:
+            otp = "1111"
+        cache.set("otp_" + mobile_no, otp, timeout=300)
+        message = SMS.OTP_LOGIN.format(otp=otp)
+        # send_otp(mobile_no=mobile_no, message=message)
+        # send_otp.apply_async(
+        #     kwargs={'mobile_no': mobile_no, 'message': message})
+        return Response(data={"message": "otp generated"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Resends the OTP to the provided mobile number.",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample('Example JSON', value={"mobile_no": "1234567890"})
+        ]
+    )
+    @action(methods=["POST"], detail=False)
+    def resend(self, request):
+        # request_body : {"mobile_no"}
+        mobile_no = request.data.get('mobile_no', None)
+        mobile_no_valid = mobile_number_validation_check(mobile_no)
+        if mobile_no_valid is not None:
+            return Response(data={"message": mobile_no_valid}, status=status.HTTP_400_BAD_REQUEST)
+        mobile_no = str(mobile_no)
+        otp = cache.get("otp_" + mobile_no)
+        if otp:
+            cache.set("otp_" + mobile_no, otp, timeout=300)
+            # message = GupshupSMSIntegration.OTP_SMS.replace("{otp}", str(otp))
+            # send_sms_to_user.delay(mobile_no=mobile_no, message=message)
+            return Response(data={"message": "resent otp"}, status=status.HTTP_200_OK)
+        else:
+            return Response(data={"message": "OTP not sent or it is expired"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        description="Verifies the provided OTP and logs in the user.",
+        request=OpenApiTypes.OBJECT,
+        examples=[
+            OpenApiExample('Example JSON', value={"mobile_no": "1234567890", "otp": "1234"})
+        ]
+    )
+    @action(methods=["POST"], detail=False)
+    def verify(self, request):
+        # this api does not need auth token
+        # request_body : {"otp", "mobile_no"}
+
+        mobile_no = request.data.get('mobile_no', None)
+        mobile_no_valid = mobile_number_validation_check(mobile_no)
+        if mobile_no_valid is not None:
+            return Response(data={"message": mobile_no_valid}, status=status.HTTP_400_BAD_REQUEST)
+        mobile_no = str(mobile_no)
+        otp = str(request.data.get("otp"))
+        otp_from_cache = cache.get("otp_" + mobile_no)
+        if otp_from_cache is None:
+            return Response(data={"message": "OTP not sent or it is expired"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if otp != otp_from_cache:
+            return Response(data={"message": "Incorrect otp"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            cache.delete("otp_" + mobile_no)
+            user = User.objects.filter(mobile_no=mobile_no).select_related('auth_token').order_by('-id').first()
+            if user is None:
+                user = User.objects.create(username=generate_random_username(), role=Role.NOT_ASSIGNED)
+                user.mobile_no = mobile_no
+                token, created = Token.objects.get_or_create(user=user)
+                user.auth_token = token
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            print(request.user)
+            user.last_login = timezone.now()
+            user.save()
+            auth_token = user.auth_token
+            response = Response(data={
+                "message": "successfully logged in",
+                "user_id": user.id,
+                "token": auth_token.key},
+                status=status.HTTP_200_OK)
+            return response
+
+    @extend_schema(
+        description="Logs out the authenticated user.",
+        responses={200: OpenApiTypes.OBJECT}
+    )
+    @action(methods=["POST"], detail=False)
+    def logout(self, request):
+        # Get the token associated with the user and delete it
+        try:
+            token = Token.objects.get(user=request.user)
+            token.delete()
+        except Token.DoesNotExist:
+            pass  # No token found for user
+
+        logout(request)
+        response = Response(data={"message": "successfully logged out"},
+                            status=status.HTTP_200_OK)
+        return response
 
 
 class UserViewSet(BaseViewSet):
@@ -100,7 +237,7 @@ user_detail_view = UserDetailView.as_view()
 class UserUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User
     fields = ["name"]
-    success_message = _("Information successfully updated")
+    success_message = "Information successfully updated"
 
     def get_success_url(self):
         assert self.request.user.is_authenticated  # for mypy to know that the user is authenticated

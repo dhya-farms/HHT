@@ -10,7 +10,7 @@ from app.payments.views import PaymentViewSet, RefundViewSet, ReturnItemViewSet,
 from app.products.views import CategoryViewSet, SupplierViewSet, TagViewSet, CouponViewSet, ProductViewSet, \
     ProductVariantViewSet, ProductImageViewSet, AttributeViewSet, AttributeValueViewSet, CollectionViewSet
 from app.shippings.views import ShippingProviderViewSet, DeliveryStatusViewSet, ShipmentViewSet
-from app.users.views import UserViewSet
+from app.users.views import UserViewSet, OtpLoginViewSet
 
 if settings.DEBUG:
     router = DefaultRouter()
@@ -18,6 +18,7 @@ else:
     router = SimpleRouter()
 
 router.register("users", UserViewSet, basename="users")
+router.register("otp", OtpLoginViewSet, basename='otp')
 router.register("customers", CustomerViewSet, basename="customers")
 router.register("addresses", AddressViewSet, basename="addresses")
 router.register("wishlists", WishlistViewSet, basename="wishlists")
