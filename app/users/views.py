@@ -118,7 +118,7 @@ class OtpLoginViewSet(viewsets.ViewSet):
             cache.delete("otp_" + mobile_no)
             user = User.objects.filter(mobile_no=mobile_no).select_related('auth_token').order_by('-id').first()
             if user is None:
-                user = User.objects.create(username=generate_random_username(), role=Role.NOT_ASSIGNED)
+                user = User.objects.create(username=generate_random_username())
                 user.mobile_no = mobile_no
                 token, created = Token.objects.get_or_create(user=user)
                 user.auth_token = token
