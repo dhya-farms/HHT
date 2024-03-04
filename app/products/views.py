@@ -159,7 +159,7 @@ class CollectionViewSet(BaseViewSet):
         ]
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        return super().list(request, **kwargs)
 
     @extend_schema(
         description="Retrieve a specific Collection by ID",

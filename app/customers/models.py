@@ -57,7 +57,7 @@ class Review(models.Model):
 
 
 class CartItem(models.Model):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cart_items')
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name='cart_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

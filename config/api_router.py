@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter, SimpleRouter
 from app.customers.views import CustomerViewSet, AddressViewSet, WishlistViewSet, WishlistItemViewSet, ReviewViewSet, \
     CartItemViewSet
 from app.orders.views import OrderViewSet, OrderItemViewSet
-from app.payments.views import PaymentViewSet, RefundViewSet, ReturnItemViewSet, ReturnViewSet
+from app.payments.views import PaymentViewSet, RefundViewSet, ReturnItemViewSet, ReturnViewSet, RazorpayViewSet
 from app.products.views import CategoryViewSet, SupplierViewSet, TagViewSet, CouponViewSet, ProductViewSet, \
     ProductVariantViewSet, ProductImageViewSet, AttributeViewSet, AttributeValueViewSet, CollectionViewSet
 from app.shippings.views import ShippingProviderViewSet, DeliveryStatusViewSet, ShipmentViewSet
@@ -27,7 +27,8 @@ router.register("reviews", ReviewViewSet, basename="reviews")
 router.register("cart-items", CartItemViewSet, basename="cart-items")
 router.register("orders", OrderViewSet, basename="orders")
 router.register("order-items", OrderItemViewSet, basename="order-items")
-router.register("payments", PaymentViewSet, basename="payments")
+router.register("payments", RazorpayViewSet, basename="payments")
+# router.register("payments", PaymentViewSet, basename="payments")
 router.register("returns", ReturnViewSet, basename="returns")
 router.register("refunds", RefundViewSet, basename="refunds")
 router.register("return-items", ReturnItemViewSet, basename="return-items")
@@ -54,4 +55,5 @@ urlpatterns += [
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger-ui'),
     path('schema/redoc/', SpectacularRedocView.as_view(url_name='api:schema'), name='redoc'),
 ]
+
 

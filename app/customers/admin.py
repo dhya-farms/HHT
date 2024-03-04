@@ -19,16 +19,11 @@ class ReviewInline(admin.TabularInline):
     extra = 1
 
 
-class CartItemInline(admin.TabularInline):
-    model = CartItem
-    extra = 1
-
-
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('get_username', 'get_email', 'view_addresses_link')
     search_fields = ('user__username', 'user__email')
-    inlines = [AddressInline, ReviewInline, CartItemInline]
+    inlines = [AddressInline, ReviewInline]
 
     def get_username(self, obj):
         return obj.user.username
@@ -76,5 +71,5 @@ class ReviewAdmin(admin.ModelAdmin):
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'product_variant', 'quantity', 'price', 'added_at')
+    list_display = ('user', 'product_variant', 'quantity', 'price', 'added_at')
     search_fields = ('product_variant__name',)

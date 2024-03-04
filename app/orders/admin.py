@@ -12,9 +12,9 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'get_coupon_code', 'status', 'created_at', 'view_order_items_link')
+    list_display = ('id', 'user', 'get_coupon_code', 'status', 'created_at', 'view_order_items_link')
     list_filter = ('status', 'created_at', 'updated_at')
-    search_fields = ('id', 'customer__user__username', 'coupon__code')
+    search_fields = ('id', 'user__username', 'coupon__code')
     inlines = [OrderItemInline]
 
     def get_coupon_code(self, obj):
