@@ -7,9 +7,9 @@ class Category(models.Model):
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='sub_categories')
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
-    icon = models.ImageField(upload_to='category_icons/', blank=True, null=True)
-    image = models.ImageField(upload_to='category_images/', blank=True, null=True)
-    placeholder = models.ImageField(upload_to='category_placeholders/', blank=True, null=True)
+    icon = models.ImageField(upload_to='merchandise/category_icons/', blank=True, null=True)
+    image = models.ImageField(upload_to='merchandise/category_images/', blank=True, null=True)
+    placeholder = models.ImageField(upload_to='merchandise/category_placeholders/', blank=True, null=True)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -21,9 +21,9 @@ class Category(models.Model):
 class Collection(models.Model):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(blank=True, null=True)
-    icon = models.ImageField(upload_to='collection_icons/', blank=True, null=True)
-    image = models.ImageField(upload_to='collection_images/', blank=True, null=True)
-    placeholder = models.ImageField(upload_to='collection_placeholders/', blank=True, null=True)
+    icon = models.ImageField(upload_to='merchandise/collection_icons/', blank=True, null=True)
+    image = models.ImageField(upload_to='merchandise/collection_images/', blank=True, null=True)
+    placeholder = models.ImageField(upload_to='merchandise/collection_placeholders/', blank=True, null=True)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -49,7 +49,7 @@ class Supplier(models.Model):
 
 class Tag(models.Model):
     name = models.CharField(max_length=255)
-    icon = models.ImageField(upload_to='tag_icons/', blank=True, null=True)
+    icon = models.ImageField(upload_to='merchandise/tag_icons/', blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -113,8 +113,8 @@ class ProductVariant(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey("products.Product", on_delete=models.CASCADE, related_name='images', blank=True, null=True)
     product_variant = models.ForeignKey("products.ProductVariant", on_delete=models.CASCADE, related_name='images', blank=True, null=True)
-    image = models.ImageField(upload_to='product_images/', blank=True, null=True)
-    placeholder = models.ImageField(upload_to='product_placeholders/', blank=True, null=True)
+    image = models.ImageField(upload_to='merchandise/product_images/', blank=True, null=True)
+    placeholder = models.ImageField(upload_to='merchandise/product_placeholders/', blank=True, null=True)
     is_thumbnail = models.BooleanField(default=False)
     is_primary = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
