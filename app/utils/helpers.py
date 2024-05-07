@@ -1,10 +1,109 @@
 import re
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from urllib import request, parse
 from django.conf import settings
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+
 from app.utils.constants import CacheKeys, SMS
-from app.utils.serializers import EnumValueSerializer
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+
+def generate_invoice_pdf(invoice):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+
+    # Company Details
+    company_name = "Your Company Name"
+    company_address_line1 = "123 Company Street"
+    company_address_line2 = "City, State, Zipcode"
+    company_contact = "Phone: 123-456-7890"
+
+    # Invoice Header
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(30*mm, height - 30*mm, company_name)
+    p.setFont("Helvetica", 10)
+    p.drawString(30*mm, height - 40*mm, company_address_line1)
+    p.drawString(30*mm, height - 45*mm, company_address_line2)
+    p.drawString(30*mm, height - 50*mm, company_contact)
+
+    # Add a company logo
+    # p.drawImage(path_to_logo, 15*mm, height - 60*mm, width=40*mm, height=20*mm)
+
+    # Invoice Details Header
+    p.setFont("Helvetica-Bold", 10)
+    p.drawString(140*mm, height - 30*mm, "Invoice")
+    p.setFont("Helvetica", 9)
+    p.drawString(140*mm, height - 35*mm, f"Invoice Number: {invoice['invoice_number']}")
+    p.drawString(140*mm, height - 40*mm, f"Date: {datetime.utcfromtimestamp(invoice['date']).strftime('%Y-%m-%d')}")
+
+    # Customer Details
+    customer_details = invoice['customer_details']
+    p.drawString(30*mm, height - 60*mm, "Bill To:")
+    p.drawString(30*mm, height - 65*mm, customer_details['name'])
+
+    billing_address = customer_details['billing_address']
+    p.drawString(30*mm, height - 70*mm, billing_address['line1'])
+    if billing_address.get('line2'):
+        p.drawString(30*mm, height - 75*mm, billing_address['line2'])
+    p.drawString(30*mm, height - 80*mm,
+                 f"{billing_address['city']}, tamilNadu, {billing_address['pincode']}")
+
+    # If shipping address exists, print it, else skip
+    shipping_address = customer_details.get('shipping_address')
+    shipping_address = shipping_address or billing_address
+    if shipping_address:
+        p.drawString(100*mm, height - 60*mm, "Ship To:")
+        p.drawString(100*mm, height - 65*mm, customer_details['name'])
+        p.drawString(100*mm, height - 70*mm, shipping_address['line1'])
+        if shipping_address.get('line2'):
+            p.drawString(100*mm, height - 75*mm, shipping_address['line2'])
+        p.drawString(100*mm, height - 80*mm,
+                     f"{shipping_address['city']}, tamilNadu, {shipping_address['pincode']}")
+
+    # Invoice Line Items Header
+    p.setFont("Helvetica-Bold", 9)
+    p.drawString(30*mm, height - 100*mm, "Description")
+    p.drawString(110*mm, height - 100*mm, "Quantity")
+    p.drawString(140*mm, height - 100*mm, "Price")
+    p.drawString(170*mm, height - 100*mm, "Amount")
+
+    p.setFont("Helvetica", 9)
+    y_position = height - 105*mm
+    for item in invoice['line_items']:
+        p.drawString(30*mm, y_position, item['name'])
+        p.drawString(110*mm, y_position, str(item['quantity']))
+        p.drawString(140*mm, y_position, f"{invoice['currency_symbol']}{item['unit_amount']}")
+        p.drawString(170*mm, y_position, f"{invoice['currency_symbol']}{item['amount']}")
+        y_position -= 5*mm
+
+    # Invoice Summary
+    p.drawString(140*mm, y_position - 10*mm, "Total:")
+    p.drawString(170*mm, y_position - 10*mm, f"{invoice['currency_symbol']}{invoice['amount']}")
+
+    # Draw a line to separate the summary section
+    p.setStrokeColor(colors.black)
+    p.line(30*mm, y_position - 12*mm, 180*mm, y_position - 12*mm)
+
+    # Footer
+    p.setFont("Helvetica", 8)
+    footer_text = "Thank you for your business!"
+    p.drawString(30*mm, 20*mm, footer_text)
+
+    # Close the PDF object cleanly
+    p.showPage()
+    p.save()
+
+    # Get the value of the BytesIO buffer and return it
+    buffer.seek(0)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
 
 
 # def get_data_for_field(field, locale):
@@ -33,6 +132,12 @@ from app.utils.serializers import EnumValueSerializer
 def allow_string_rep_of_enum(x):
     """Convert string representation of enum to integer."""
     return int(x) if isinstance(x, str) else x
+
+
+def convert_to_list(v):
+    if v is None:
+        return None
+    return [v] if not isinstance(v, list) else v
 
 
 def convert_to_decimal(x):
@@ -118,14 +223,14 @@ def build_cache_key(template_type: CacheKeys, **kwargs) -> str:
 
 
 def build_user_filter_cache_key(
-        search_queries: list[str] or None,
-        organization_id: int or None,
-        designation: list[int] or None,
-        place_id: list[int] or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    search_queries: list[str] or None,
+    organization_id: int or None,
+    designation: list[int] or None,
+    place_id: list[int] or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "search_queries": "~".join(search_queries) if search_queries else "None",
@@ -143,12 +248,12 @@ def build_user_filter_cache_key(
 
 
 def build_fish_filter_cache_key(
-        name: str or None,
-        organization_id: int or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    name: str or None,
+    organization_id: int or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "name": name if name else "None",
@@ -164,13 +269,13 @@ def build_fish_filter_cache_key(
 
 
 def build_fish_variant_filter_cache_key(
-        fish_id: int or None,
-        name: str or None,
-        organization_id: int or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    fish_id: int or None,
+    name: str or None,
+    organization_id: int or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "fish_id": fish_id if fish_id else "None",
@@ -187,13 +292,13 @@ def build_fish_variant_filter_cache_key(
 
 
 def build_discount_filter_cache_key(
-        organization_id: int or None,
-        name: str or None,
-        type: int or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    organization_id: int or None,
+    name: str or None,
+    type: int or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "type": type if type else "None",
@@ -210,11 +315,11 @@ def build_discount_filter_cache_key(
 
 
 def build_price_history_cache_key(
-        fish_id: int or None,
-        fish_variant_id: int or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    fish_id: int or None,
+    fish_variant_id: int or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "fish_id": fish_id if fish_id else "None",
@@ -229,14 +334,14 @@ def build_price_history_cache_key(
 
 
 def build_place_filter_cache_key(
-        organization_id: int or None,
-        name: str or None,
-        type: int or None,
-        is_active: bool or None,
-        center_id: int or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    organization_id: int or None,
+    name: str or None,
+    type: int or None,
+    is_active: bool or None,
+    center_id: int or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "organization_id": organization_id if organization_id else "None",
@@ -254,11 +359,11 @@ def build_place_filter_cache_key(
 
 
 def build_organization_filter_cache_key(
-        name: str or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    name: str or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "name": name if name else "None",
@@ -273,21 +378,21 @@ def build_organization_filter_cache_key(
 
 
 def build_record_filter_cache_key(
-        organization_id: int or None,
-        user_id: int or None,
-        import_from_id: int or None,
-        export_to_id: int or None,
-        record_type: int or None,
-        discount_id: int or None,
-        fish_variant_id: int or None,
-        weigh_place_id: int or None,
-        is_SP: bool or None,
-        is_active: bool or None,
-        start_time: str or None,
-        end_time: str or None,
-        ordering: str or None,
-        page: int or None,
-        locale: str,
+    organization_id: int or None,
+    user_id: int or None,
+    import_from_id: int or None,
+    export_to_id: int or None,
+    record_type: int or None,
+    discount_id: int or None,
+    fish_variant_id: int or None,
+    weigh_place_id: int or None,
+    is_SP: bool or None,
+    is_active: bool or None,
+    start_time: str or None,
+    end_time: str or None,
+    ordering: str or None,
+    page: int or None,
+    locale: str,
 ):
     args = {
         "organization_id": str(organization_id) if organization_id is not None else "None",
@@ -312,15 +417,15 @@ def build_record_filter_cache_key(
 
 
 def build_expense_filter_cache_key(
-        organization_id: int or None,
-        user_id: int or None,
-        type_id: int or None,
-        desc: str or None,
-        start_time: str or None,
-        end_time: str or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    organization_id: int or None,
+    user_id: int or None,
+    type_id: int or None,
+    desc: str or None,
+    start_time: str or None,
+    end_time: str or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "organization_id": organization_id if organization_id else "None",
@@ -339,12 +444,12 @@ def build_expense_filter_cache_key(
 
 
 def build_expense_type_filter_cache_key(
-        name: str or None,
-        organization_id: int or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    name: str or None,
+    organization_id: int or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "name": name if name else "None",
@@ -360,17 +465,17 @@ def build_expense_type_filter_cache_key(
 
 
 def build_bill_filter_cache_key(
-        organization_id: int or None,
-        user_id: int or None,
-        bill_place_id: int or None,
-        discount_id: int or None,
-        pay_type: int or None,
-        is_active: bool or None,
-        start_time: str or None,
-        end_time: str or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    organization_id: int or None,
+    user_id: int or None,
+    bill_place_id: int or None,
+    discount_id: int or None,
+    pay_type: int or None,
+    is_active: bool or None,
+    start_time: str or None,
+    end_time: str or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "organization_id": organization_id if organization_id else "None",
@@ -391,13 +496,13 @@ def build_bill_filter_cache_key(
 
 
 def build_bill_item_filter_cache_key(
-        bill_id: int or None,
-        fish_variant_id: int or None,
-        is_SP: bool or None,
-        is_active: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    bill_id: int or None,
+    fish_variant_id: int or None,
+    is_SP: bool or None,
+    is_active: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "bill_id": bill_id if bill_id else "None",
@@ -414,13 +519,13 @@ def build_bill_item_filter_cache_key(
 
 
 def build_stock_filter_cache_key(
-        organization_id: int or None,
-        place_id: int or None,
-        fish_variant_id: int or None,
-        is_SP: bool or None,
-        ordering: str or None,
-        page: int or None,
-        locale,
+    organization_id: int or None,
+    place_id: int or None,
+    fish_variant_id: int or None,
+    is_SP: bool or None,
+    ordering: str or None,
+    page: int or None,
+    locale,
 ):
     args = {
         "organization_id": organization_id if organization_id else "None",
@@ -434,4 +539,3 @@ def build_stock_filter_cache_key(
 
     cache_key = CacheKeys.STOCK_LIST.value.format(**args)
     return cache_key
-

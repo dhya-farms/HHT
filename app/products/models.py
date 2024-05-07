@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.text import slugify
 
 from app.products.enums import DiscountType
 
@@ -69,7 +70,7 @@ class Coupon(models.Model):
 
 
 class Product(models.Model):
-    slug = models.SlugField(max_length=255, unique=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     name = models.CharField(max_length=255)
     sku = models.CharField(max_length=255, blank=True, null=True)
     buying_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -80,11 +81,16 @@ class Product(models.Model):
     note = models.TextField(blank=True, null=True)
     collection = models.ForeignKey("products.Collection", on_delete=models.CASCADE, related_name='products')
     categories = models.ManyToManyField("products.Category", related_name='products')
-    tags = models.ManyToManyField("products.Tag", related_name='tags')
-    suppliers = models.ManyToManyField("products.Supplier", related_name='tags')
-    coupons = models.ManyToManyField("products.Coupon", related_name='tags')
+    tags = models.ManyToManyField("products.Tag", related_name='tags', blank=True)
+    suppliers = models.ManyToManyField("products.Supplier", related_name='products', blank=True)
+    coupons = models.ManyToManyField("products.Coupon", related_name='products', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super(Product, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name

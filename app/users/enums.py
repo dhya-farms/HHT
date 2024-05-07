@@ -3,7 +3,6 @@ from enum import unique
 
 
 @unique
-class Role(models.IntegerChoices):
-    ADMIN = 1, 'Admin'
-    EMPLOYEE = 2, 'Employee'
-    CUSTOMER = 3, 'Customer'
+class UserType(models.IntegerChoices):
+    MEMBER = 1, 'Member'
+    PRESIDENT = 2, 'President'

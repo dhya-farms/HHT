@@ -17,10 +17,10 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class AddressSerializer(serializers.ModelSerializer):
-    address_type = serializers.SerializerMethodField()
-
-    def get_address_type(self, obj):
-        return get_serialized_enum(AddressType(obj.address_type))
+    # address_type = serializers.SerializerMethodField()
+    #
+    # def get_address_type(self, obj):
+    #     return get_serialized_enum(AddressType(obj.address_type))
 
     class Meta:
         model = Address
@@ -42,7 +42,7 @@ class WishlistItemSerializer(serializers.ModelSerializer):
 
 
 class ReviewSerializer(serializers.ModelSerializer):
-    customer = CustomerSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
     product = ProductSerializer(read_only=True)
 
     class Meta:
@@ -51,7 +51,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    customer = CustomerSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
     product_variant = ProductVariantSerializer(read_only=True)
 
     class Meta:

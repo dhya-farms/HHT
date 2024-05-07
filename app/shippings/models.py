@@ -36,3 +36,20 @@ class DeliveryStatus(models.Model):
 
     def __str__(self):
         return f"Status {DeliveryStatusStatus(self.status).label} for Shipment {self.shipment.id} on {self.status_date}"
+
+
+class ShippingRate(models.Model):
+    pincode = models.CharField(max_length=6, unique=True)
+    rate = models.DecimalField(max_digits=10, decimal_places=2)
+    estimated_delivery_days = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.pincode} - ${self.rate} - {self.estimated_delivery_days} days"
+
+
+class PincodeAvailability(models.Model):
+    pincode = models.CharField(max_length=6, unique=True)
+    is_available = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.pincode + (" Available" if self.is_available else " Not Available")

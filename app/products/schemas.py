@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from _decimal import Decimal
-from pydantic.v1 import BaseModel
-from pydantic.v1 import condecimal, validator
+from pydantic.v1 import BaseModel, condecimal, validator
 
 from app.products.enums import DiscountType
-from app.utils.helpers import allow_string_rep_of_enum
+from app.utils.helpers import allow_string_rep_of_enum, convert_to_list, convert_to_decimal
 
 
 class CategoryCreateSchema(BaseModel):
@@ -143,8 +142,8 @@ class ProductCreateSchema(BaseModel):
     slug: str
     name: str
     sku: Optional[str] = None
-    buying_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
-    sale_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
+    buying_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
+    sale_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
     short_description: str
     description: Optional[str]
     published: Optional[bool] = False
@@ -156,8 +155,8 @@ class ProductUpdateSchema(BaseModel):
     slug: str
     name: str
     sku: Optional[str] = None
-    buying_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
-    sale_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
+    buying_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
+    sale_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
     short_description: str
     description: Optional[str]
     published: Optional[bool] = False
@@ -169,14 +168,19 @@ class ProductListSchema(BaseModel):
     slug: Optional[str]
     name: Optional[str]
     sku: Optional[str]
-    min_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
-    max_price = condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))
-    published: Optional[bool]
+    min_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
+    max_price: Optional[condecimal(max_digits=10, decimal_places=2, ge=Decimal(0))]
+    published: Optional[bool] = True
     collection_id: Optional[int]
-    category_id: Optional[List[int]]
-    tag_id: Optional[List[int]]
-    supplier_id: Optional[List[int]]
-    coupon_id: Optional[List[int]]
+    category_id: Optional[Union[int, List[int]]]
+    tag_id: Optional[Union[int, List[int]]]
+    supplier_id: Optional[Union[int, List[int]]]
+    coupon_id: Optional[Union[int, List[int]]]
+    ordering: Optional[str] = "name"
+
+    _validate_int_to_list = validator("category_id", "tag_id", "supplier_id", "coupon_id",
+                                      allow_reuse=True,
+                                      pre=True)(convert_to_list)
 
 
 class ProductVariantCreateSchema(BaseModel):

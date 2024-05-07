@@ -4,9 +4,12 @@ from django.utils.html import format_html
 from django.urls import reverse
 
 
-class AddressInline(admin.TabularInline):
+class AddressInline(admin.StackedInline):  # Using StackedInline for better readability
     model = Address
-    extra = 1
+    extra = 0  # Show existing addresses without extra empty forms
+    fields = ('address_type', 'line1', 'line2', 'city', 'pincode')
+    verbose_name = "User Address"
+    verbose_name_plural = "User Addresses"
 
 
 class WishlistItemInline(admin.TabularInline):
@@ -23,7 +26,6 @@ class ReviewInline(admin.TabularInline):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ('get_username', 'get_email', 'view_addresses_link')
     search_fields = ('user__username', 'user__email')
-    inlines = [AddressInline, ReviewInline]
 
     def get_username(self, obj):
         return obj.user.username
@@ -50,21 +52,22 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'address_type', 'street', 'city', 'state', 'zip_code', 'country', 'is_primary')
-    list_filter = ('address_type', 'city', 'state', 'country', 'is_primary')
-    search_fields = ('street', 'city', 'zip_code')
+    list_display = ('user', 'address_type', 'line1', 'line2', 'city', 'pincode')
+    list_filter = ('city', 'address_type')
+    search_fields = ('user__name', 'city', 'pincode', 'line1', 'line2')
+    ordering = ('city', 'user')
 
 
 @admin.register(Wishlist)
 class WishlistAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'name', 'created_at', 'updated_at')
+    list_display = ('user', 'name', 'created_at', 'updated_at')
     search_fields = ('name',)
     inlines = [WishlistItemInline]
 
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'product', 'rating', 'created_at')
+    list_display = ('user', 'product', 'rating', 'created_at')
     list_filter = ('rating',)
     search_fields = ('product__name',)
 

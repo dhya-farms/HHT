@@ -1,5 +1,10 @@
+import boto3
+from botocore.exceptions import NoCredentialsError
+from django.http import HttpResponseRedirect, HttpResponse
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
+from rest_framework.decorators import action
 
+from config import settings
 from .models import Order
 from app.orders.controllers import OrderController, OrderItemController
 from app.orders.serializers import OrderSerializer, OrderItemSerializer
@@ -74,6 +79,29 @@ class OrderViewSet(BaseViewSet):
     )
     def retrieve(self, request, pk=None, *args, **kwargs):
         return super().retrieve(request, pk, *args, **kwargs)
+
+    @extend_schema(
+        description="Retrieve a Invoice by Order ID",
+    )
+    @action(detail=True, methods=['get'], url_path='invoice')
+    def invoice(self, request, pk, *args, **kwargs):
+        order = Order.objects.get(pk=pk, user=request.user)
+
+        # Assume invoice_file is a FileField storing the file in S3
+        invoice_file_path = order.invoice_file.name
+
+        s3_client = boto3.client('s3', aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                                 region_name=settings.AWS_S3_REGION_NAME)
+
+        try:
+            signed_url = s3_client.generate_presigned_url('get_object',
+                                                          Params={'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                                                                  'Key': invoice_file_path},
+                                                          ExpiresIn=3600)
+            return HttpResponseRedirect(signed_url)
+        except NoCredentialsError:
+            return HttpResponse("Error generating Invoice URL", status=500)
 
 
 class OrderItemViewSet(BaseViewSet):

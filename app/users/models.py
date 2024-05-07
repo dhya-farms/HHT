@@ -4,7 +4,7 @@ from django.core.validators import RegexValidator
 from django.db.models import JSONField
 from django.urls import reverse
 from django.db import models
-from app.users.enums import Role
+from app.users.enums import UserType
 from django.utils.translation import gettext_lazy as _
 
 from app.utils.helpers import generate_random_username
@@ -29,9 +29,10 @@ class User(AbstractUser):
     mobile_no = models.CharField(max_length=10, unique=True, validators=[
         RegexValidator(regex=r'^\d{10}$', message="Provide Proper 10 digit Phone Number")],
                                  db_index=True, blank=True, null=True)
-    role = models.IntegerField(choices=Role.choices, blank=True, null=True)
+    user_type = models.IntegerField(choices=UserType.choices, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    favorites = models.ManyToManyField('products.Product', related_name='favorited_by', blank=True)
 
     def __str__(self):
         return f"id: {self.id}. {self.name} [{self.mobile_no}]"

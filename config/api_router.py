@@ -9,7 +9,8 @@ from app.orders.views import OrderViewSet, OrderItemViewSet
 from app.payments.views import PaymentViewSet, RefundViewSet, ReturnItemViewSet, ReturnViewSet, RazorpayViewSet
 from app.products.views import CategoryViewSet, SupplierViewSet, TagViewSet, CouponViewSet, ProductViewSet, \
     ProductVariantViewSet, ProductImageViewSet, AttributeViewSet, AttributeValueViewSet, CollectionViewSet
-from app.shippings.views import ShippingProviderViewSet, DeliveryStatusViewSet, ShipmentViewSet
+from app.shippings.views import ShippingProviderViewSet, DeliveryStatusViewSet, ShipmentViewSet, \
+    CheckPincodeAvailability, CalculateShipping
 from app.users.views import UserViewSet, OtpLoginViewSet
 
 if settings.DEBUG:
@@ -50,6 +51,9 @@ app_name = "api"
 urlpatterns = router.urls
 
 urlpatterns += [
+    path('shipping/check-pincode/<str:pincode>/', CheckPincodeAvailability.as_view(), name='check-pincode'),
+    path('shipping/calculate-shipping/<str:pincode>/', CalculateShipping.as_view(), name='calculate-shipping'),
+    path('products/<slug:slug>/', ProductViewSet.as_view({'get': 'retrieve'}), name='product-detail'),
     # path('get-enum-values/', get_enum_values, name='get_enum_values'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='api:schema'), name='swagger-ui'),

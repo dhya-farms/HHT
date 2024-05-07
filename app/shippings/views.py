@@ -1,12 +1,36 @@
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .controllers import ShippingProviderController, ShipmentController, DeliveryStatusController
+from .models import PincodeAvailability, ShippingRate
 from .schemas import ShippingProviderCreateSchema, ShippingProviderUpdateSchema, ShippingProviderListSchema, \
     ShipmentCreateSchema, ShipmentUpdateSchema, ShipmentListSchema, DeliveryStatusCreateSchema, \
     DeliveryStatusUpdateSchema, DeliveryStatusListSchema
 from .serializers import ShippingProviderSerializer, ShipmentSerializer, DeliveryStatusSerializer
 from ..utils.constants import CacheKeys
 from ..utils.views import BaseViewSet
+
+
+class CheckPincodeAvailability(APIView):
+    def get(self, request, pincode):
+        try:
+            availability = PincodeAvailability.objects.get(pincode=pincode)
+            return Response({'pincode': pincode, 'is_available': availability.is_available})
+        except PincodeAvailability.DoesNotExist:
+            return Response({'pincode': pincode, 'is_available': False}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CalculateShipping(APIView):
+    def get(self, request, pincode):
+        try:
+            rate = ShippingRate.objects.get(pincode=pincode)
+            return Response(
+                {'pincode': pincode, 'rate': rate.rate, 'estimated_delivery_days': rate.estimated_delivery_days})
+        except ShippingRate.DoesNotExist:
+            return Response({'error': 'Shipping information not available for this pincode'},
+                            status=status.HTTP_404_NOT_FOUND)
 
 
 class ShippingProviderViewSet(BaseViewSet):

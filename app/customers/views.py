@@ -149,7 +149,6 @@ class AddressViewSet(BaseViewSet):
         responses={200: AddressSerializer(many=True)},
         parameters=[
             OpenApiParameter(name='customer_id', type=int, description='Filter by customer ID'),
-            OpenApiParameter(name='city', type=str, description='Filter by city name'),
             OpenApiParameter(name='is_primary', type=bool, description='Filter by primary status')
         ]
     )

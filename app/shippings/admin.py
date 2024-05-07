@@ -1,5 +1,5 @@
 from django.contrib import admin
-from app.shippings.models import ShippingProvider, Shipment, DeliveryStatus
+from app.shippings.models import ShippingProvider, Shipment, DeliveryStatus, ShippingRate, PincodeAvailability
 
 
 @admin.register(ShippingProvider)
@@ -36,3 +36,15 @@ class DeliveryStatusAdmin(admin.ModelAdmin):
 
     status_display.admin_order_field = 'status'
     status_display.short_description = 'Status'
+
+
+@admin.register(ShippingRate)
+class ShippingRateAdmin(admin.ModelAdmin):
+    list_display = ['pincode', 'rate', 'estimated_delivery_days']
+    search_fields = ['pincode']
+
+
+@admin.register(PincodeAvailability)
+class PincodeAvailabilityAdmin(admin.ModelAdmin):
+    list_display = ['pincode', 'is_available']
+    search_fields = ['pincode']

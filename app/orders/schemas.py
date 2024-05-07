@@ -9,7 +9,7 @@ from app.utils.helpers import allow_string_rep_of_enum, convert_to_decimal
 
 # Order Schemas
 class OrderCreateSchema(BaseModel):
-    customer_id: int
+    user_id: int
     coupon_id: Optional[int] = None
     status: Optional[OrderStatus] = OrderStatus.PENDING
 
@@ -17,7 +17,7 @@ class OrderCreateSchema(BaseModel):
 
 
 class OrderUpdateSchema(BaseModel):
-    customer_id: int = None
+    user_id: int = None
     coupon_id: Optional[int] = None
     status: Optional[OrderStatus] = None
 
@@ -25,7 +25,7 @@ class OrderUpdateSchema(BaseModel):
 
 
 class OrderListSchema(BaseModel):
-    customer_id: Optional[int]
+    user_id: Optional[int]
     coupon_id: Optional[int]
     status: Optional[OrderStatus]
 

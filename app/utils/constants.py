@@ -67,12 +67,12 @@ class CacheKeys(Enum):
     SUPPLIER_DETAILS_BY_PK = None
     TAG_DETAILS_BY_PK = None
     COUPON_DETAILS_BY_PK = None
-    PRODUCT_DETAILS_BY_PK = None
+    PRODUCT_DETAILS_BY_SLUG = None
     PRODUCT_VARIANT_DETAILS_BY_PK = None
     PRODUCT_IMAGE_DETAILS_BY_PK = None
     SITE_VISIT_DETAILS_BY_PK = None
 
 
 class SMS:
-    OTP_LOGIN = "otp-{otp}"
+    OTP_LOGIN_MESSAGE = "Dear {name},24HRS Application login {otp} - COSMOZEAL TECH LLP"
     TEXTLOCAL_HOST = "https://api.textlocal.in/send/?"

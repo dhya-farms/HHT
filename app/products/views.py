@@ -1,6 +1,9 @@
-from rest_framework import viewsets
+from django.core.cache import cache
+from django.http import JsonResponse
+from rest_framework import viewsets, status
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter, OpenApiResponse
 from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from .controllers import CategoryController, CollectionController, SupplierController, TagController, CouponController, \
     ProductController, ProductVariantController, ProductImageController, AttributeValueController, AttributeController
@@ -14,7 +17,8 @@ from .schemas import CategoryCreateSchema, CategoryUpdateSchema, CategoryListSch
     ProductVariantListSchema, ProductImageCreateSchema, ProductImageUpdateSchema, ProductImageListSchema, \
     AttributeValueCreateSchema, AttributeValueUpdateSchema, AttributeValueListSchema, AttributeCreateSchema, \
     AttributeUpdateSchema, AttributeListSchema
-from ..utils.constants import CacheKeys
+from ..utils.constants import CacheKeys, Timeouts
+from ..utils.pagination import CustomPageNumberPagination
 from ..utils.views import BaseViewSet
 
 
@@ -420,8 +424,9 @@ class ProductViewSet(BaseViewSet):
     create_schema = ProductCreateSchema
     update_schema = ProductUpdateSchema
     list_schema = ProductListSchema
-    cache_key_retrieve = CacheKeys.PRODUCT_DETAILS_BY_PK
+    cache_key_retrieve = CacheKeys.PRODUCT_DETAILS_BY_SLUG
     cache_key_list = CacheKeys.PRODUCT_LIST
+    lookup_field = 'slug'
 
     @extend_schema(
         description="Create a new Product",
@@ -484,21 +489,63 @@ class ProductViewSet(BaseViewSet):
             OpenApiParameter(name="max_price", type=str, description="Filter by product price"),
             OpenApiParameter(name="published", type=bool, description="Filter by published status"),
             OpenApiParameter(name="collection_id", type=int, description="Filter by collection ID"),
-            OpenApiParameter(name="category_id", type=str, description="Filter by categories IDs, comma-separated"),
-            OpenApiParameter(name="tag_id", type=str, description="Filter by tags IDs, comma-separated"),
-            OpenApiParameter(name="supplier_id", type=str, description="Filter by suppliers IDs, comma-separated"),
-            OpenApiParameter(name="coupon_id", type=str, description="Filter by coupons IDs, comma-separated"),
+            OpenApiParameter(name="category_id", type=int, description="Filter by categories IDs"),
+            OpenApiParameter(name="tag_id", type=int, description="Filter by tags IDs"),
+            OpenApiParameter(name="supplier_id", type=int, description="Filter by suppliers IDs"),
+            OpenApiParameter(name="coupon_id", type=int, description="Filter by coupons IDs"),
+            OpenApiParameter(name="ordering", type=str, description="sort by ordering"),
         ]
     )
     def list(self, request, **kwargs):
         return super().list(request, **kwargs)
 
     @extend_schema(
-        description="Retrieve a specific Product by ID",
+        description="Retrieve a specific Product by Slug",
         responses={200: ProductSerializer}
     )
-    def retrieve(self, request, pk=None, *args, **kwargs):
-        return super().retrieve(request, pk, *args, **kwargs)
+    def retrieve(self, request, *args, **kwargs):
+        slug = kwargs.get('slug')
+        instance, cache_key = None, ""
+        if self.cache_key_retrieve.value:
+            cache_key = self.cache_key_retrieve.value.format(slug=slug)
+            instance = cache.get(cache_key)
+        if instance:
+            data = instance
+        else:
+            instance = self.controller.get_product_by_slug(slug=slug)
+            if not instance:
+                return JsonResponse({"error": "Instance with this slug does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            data = self.controller.serialize_one(instance, self.serializer)
+            if self.cache_key_retrieve:
+                cache.set(cache_key, data, timeout=Timeouts.MINUTES_10)
+        return JsonResponse(data=data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='add-to-favorites')
+    def add_to_favorites(self, request, slug=None):
+        product = self.controller.get_product_by_slug(slug=slug)
+        if not product:
+            return JsonResponse({"error": "Product with this ID does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        request.user.favorites.add(product)
+        return JsonResponse({'status': 'product added to favorites'}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='remove-from-favorites')
+    def remove_from_favorites(self, request, slug=None):
+        product = self.controller.get_product_by_slug(slug=slug)
+        if not product:
+            return JsonResponse({"error": "Product with this ID does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        request.user.favorites.remove(product)
+        return JsonResponse({'status': 'product removed from favorites'}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='my-favourites')
+    def list_favorites(self, request):
+        paginator = CustomPageNumberPagination()
+        queryset = request.user.favorites.all()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        if page is not None:
+            res = self.controller.serialize_queryset(page, self.serializer)
+            return paginator.get_paginated_response(res)
+        res = self.controller.serialize_queryset(queryset, self.serializer)
+        return JsonResponse(res, safe=False, status=status.HTTP_200_OK)
 
 
 class ProductVariantViewSet(BaseViewSet):
@@ -574,6 +621,54 @@ class ProductVariantViewSet(BaseViewSet):
     )
     def retrieve(self, request, pk=None, *args, **kwargs):
         return super().retrieve(request, pk, *args, **kwargs)
+
+    @extend_schema(
+        description="Add this Product Variant to Cart)",
+        methods=['POST'],
+        responses={200: OpenApiResponse(description="Added to Cart Successfully")}
+    )
+    @action(detail=True, methods=['post'], url_path='add-to-cart')
+    def add_to_cart(self, request, pk, *args, **kwargs):
+        errors, instance = self.controller.add_to_cart(pk, request.user)
+        if errors:
+            return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Added to Cart Successfully"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Remove this Product Variant to Cart",
+        methods=['POST'],
+        responses={200: OpenApiResponse(description="Removed from Cart Successfully")}
+    )
+    @action(detail=True, methods=['post'], url_path='remove-from-cart')
+    def remove_from_cart(self, request, pk, *args, **kwargs):
+        errors, instance = self.controller.remove_from_cart(pk, request.user)
+        if errors:
+            return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Removed from Cart Successfully"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Increase the count of this Product Variant to Cart",
+        methods=['POST'],
+        responses={200: OpenApiResponse(description="Increased Cart Item successfully")}
+    )
+    @action(detail=True, methods=['post'], url_path='increase-cart-item')
+    def increase_cart_item(self, request, pk, *args, **kwargs):
+        errors, instance = self.controller.increase_cart_item(pk, request.user)
+        if errors:
+            return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Increased Cart Item Successfully"}, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        description="Decrease the count of this Product Variant to Cart",
+        methods=['POST'],
+        responses={200: OpenApiResponse(description="Decreased Cart Item successfully")}
+    )
+    @action(detail=True, methods=['post'], url_path='decrease-cart-item')
+    def decrease_cart_item(self, request, pk, *args, **kwargs):
+        errors, instance = self.controller.decrease_cart_item(pk, request.user)
+        if errors:
+            return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Decreased Cart Item Successfully"}, status=status.HTTP_200_OK)
 
 
 class ProductImageViewSet(BaseViewSet):

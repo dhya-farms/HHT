@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -18,9 +19,10 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from app.users.controllers import UserController
-from app.users.enums import Role
+from app.users.enums import UserType
 from app.users.schemas import UserCreateSchema, UserUpdateSchema, UserListSchema
 from app.users.serializers import UserSerializer
+from app.users.tasks import send_sms
 from app.utils.constants import Timeouts, CacheKeys, SMS
 from app.utils.helpers import mobile_number_validation_check, qdict_to_dict, \
     generate_random_username, build_cache_key
@@ -51,18 +53,29 @@ class OtpLoginViewSet(viewsets.ViewSet):
 
         mobile_no = str(mobile_no)
 
-        static_otp_mobile_numbers = ['9344015965', '8971165979', '7013991532', '9959727836', '1414141414',
-                                     '8858327030']  # can keep the numbers in .env file
-        if mobile_no in static_otp_mobile_numbers:
-            otp = "1111"
-        else:
-            otp = str(random.randint(1000, 9999))
+        # static_otp_mobile_numbers = ['9344015965', '8971165979', '7013991532', '9959727836', '1414141414',
+        #                              '8858327030']  # can keep the numbers in .env file
+        # if mobile_no in static_otp_mobile_numbers:
+        #     otp = "111111"
+        # else:
+        otp = str(random.randint(100000, 999999))
         if settings.DEBUG:
-            otp = "1111"
+            otp = "111111"
         cache.set("otp_" + mobile_no, otp, timeout=300)
-        message = SMS.OTP_LOGIN.format(otp=otp)
-        # send_otp(mobile_no=mobile_no, message=message)
-        # send_otp.apply_async(
+        user = User.objects.filter(mobile_no=mobile_no).first()
+        if user is None:
+            name = "User"
+        else:
+            name = user.name or "User"
+        message = SMS.OTP_LOGIN_MESSAGE.format(name=name, otp=otp)
+        # send_sms_result = send_sms(message=message, number=mobile_no)
+        # print(send_sms_result)
+        # send_sms_result = send_sms.delay(message=message, number=mobile_no)
+        # send_sms.apply_async(args=[message, mobile_no], queue='openai')
+        send_sms(message, mobile_no)
+        # print(send_sms_result.get(timeout=10))  # Waits up to 10 seconds for the result
+
+        # send_sms.apply_async(
         #     kwargs={'mobile_no': mobile_no, 'message': message})
         return Response(data={"message": "otp generated"}, status=status.HTTP_200_OK)
 
@@ -83,9 +96,14 @@ class OtpLoginViewSet(viewsets.ViewSet):
         mobile_no = str(mobile_no)
         otp = cache.get("otp_" + mobile_no)
         if otp:
+            user = User.objects.filter(mobile_no=mobile_no).first()
+            if user is None:
+                name = "User"
+            else:
+                name = user.name or "User"
             cache.set("otp_" + mobile_no, otp, timeout=300)
-            # message = GupshupSMSIntegration.OTP_SMS.replace("{otp}", str(otp))
-            # send_sms_to_user.delay(mobile_no=mobile_no, message=message)
+            message = SMS.OTP_LOGIN_MESSAGE.format(name=name, otp=otp)
+            send_sms.apply_async(args=[message, mobile_no], queue='openai')
             return Response(data={"message": "resent otp"}, status=status.HTTP_200_OK)
         else:
             return Response(data={"message": "OTP not sent or it is expired"}, status=status.HTTP_400_BAD_REQUEST)
@@ -120,13 +138,18 @@ class OtpLoginViewSet(viewsets.ViewSet):
             if user is None:
                 user = User.objects.create(username=generate_random_username())
                 user.mobile_no = mobile_no
-                token, created = Token.objects.get_or_create(user=user)
-                user.auth_token = token
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             print(request.user)
             user.last_login = timezone.now()
+
+            # Attempt to access the user's auth_token
+            try:
+                auth_token = user.auth_token
+            except ObjectDoesNotExist:
+                auth_token, created = Token.objects.get_or_create(user=user)
+                user.auth_token = auth_token
             user.save()
-            auth_token = user.auth_token
+
             response = Response(data={
                 "message": "successfully logged in",
                 "user": UserSerializer(user).data,
@@ -170,7 +193,7 @@ class UserViewSet(BaseViewSet):
             OpenApiExample('User Creation Request JSON', value={
                 "name": "John Doe",
                 "mobile_no": "1234567890",
-                "role": "admin"
+                "user_type": "admin"
             })
         ]
     )
@@ -184,7 +207,7 @@ class UserViewSet(BaseViewSet):
             OpenApiExample('User Update Request JSON', value={
                 "name": "Jane Doe",
                 "mobile_no": "0987654321",
-                "role": "user"
+                "user_type": "user"
             })
         ]
     )
@@ -198,8 +221,8 @@ class UserViewSet(BaseViewSet):
                              description='name'),
             OpenApiParameter(name='mobile_no', location=OpenApiParameter.QUERY, required=False, type=str,
                              description='mobile_no'),
-            OpenApiParameter(name='role', location=OpenApiParameter.QUERY, required=False, type=str,
-                             description='role'),
+            OpenApiParameter(name='user_type', location=OpenApiParameter.QUERY, required=False, type=str,
+                             description='user_type'),
         ],
     )
     def list(self, request, **kwargs):

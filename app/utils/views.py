@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from app.utils.constants import Timeouts
 from app.utils.helpers import build_cache_key, qdict_to_dict
-from app.utils.pagination import MyPagination
+from app.utils.pagination import CustomPageNumberPagination
 
 
 class BaseViewSet(viewsets.ViewSet):
@@ -47,7 +47,7 @@ class BaseViewSet(viewsets.ViewSet):
         if errors:
             return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
 
-        paginator = MyPagination()
+        paginator = CustomPageNumberPagination()
         page_key = request.query_params.get('page')
         instance, cache_key = None, ""
         if self.cache_key_list.value:
@@ -61,6 +61,7 @@ class BaseViewSet(viewsets.ViewSet):
         if instance:
             res = instance
         else:
+            a = data.dict()
             errors, data = self.controller.filter(**data.dict())
             if errors:
                 return JsonResponse(data=errors, status=status.HTTP_400_BAD_REQUEST)
