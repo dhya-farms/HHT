@@ -1,3 +1,4 @@
+import random
 import re
 import uuid
 from datetime import datetime
@@ -26,74 +27,74 @@ def generate_invoice_pdf(invoice):
 
     # Invoice Header
     p.setFont("Helvetica-Bold", 12)
-    p.drawString(30*mm, height - 30*mm, company_name)
+    p.drawString(30 * mm, height - 30 * mm, company_name)
     p.setFont("Helvetica", 10)
-    p.drawString(30*mm, height - 40*mm, company_address_line1)
-    p.drawString(30*mm, height - 45*mm, company_address_line2)
-    p.drawString(30*mm, height - 50*mm, company_contact)
+    p.drawString(30 * mm, height - 40 * mm, company_address_line1)
+    p.drawString(30 * mm, height - 45 * mm, company_address_line2)
+    p.drawString(30 * mm, height - 50 * mm, company_contact)
 
     # Add a company logo
     # p.drawImage(path_to_logo, 15*mm, height - 60*mm, width=40*mm, height=20*mm)
 
     # Invoice Details Header
     p.setFont("Helvetica-Bold", 10)
-    p.drawString(140*mm, height - 30*mm, "Invoice")
+    p.drawString(140 * mm, height - 30 * mm, "Invoice")
     p.setFont("Helvetica", 9)
-    p.drawString(140*mm, height - 35*mm, f"Invoice Number: {invoice['invoice_number']}")
-    p.drawString(140*mm, height - 40*mm, f"Date: {datetime.utcfromtimestamp(invoice['date']).strftime('%Y-%m-%d')}")
+    p.drawString(140 * mm, height - 35 * mm, f"Invoice Number: {invoice['invoice_number']}")
+    p.drawString(140 * mm, height - 40 * mm, f"Date: {datetime.utcfromtimestamp(invoice['date']).strftime('%Y-%m-%d')}")
 
     # Customer Details
     customer_details = invoice['customer_details']
-    p.drawString(30*mm, height - 60*mm, "Bill To:")
-    p.drawString(30*mm, height - 65*mm, customer_details['name'])
+    p.drawString(30 * mm, height - 60 * mm, "Bill To:")
+    p.drawString(30 * mm, height - 65 * mm, customer_details['name'])
 
     billing_address = customer_details['billing_address']
-    p.drawString(30*mm, height - 70*mm, billing_address['line1'])
+    p.drawString(30 * mm, height - 70 * mm, billing_address['line1'])
     if billing_address.get('line2'):
-        p.drawString(30*mm, height - 75*mm, billing_address['line2'])
-    p.drawString(30*mm, height - 80*mm,
+        p.drawString(30 * mm, height - 75 * mm, billing_address['line2'])
+    p.drawString(30 * mm, height - 80 * mm,
                  f"{billing_address['city']}, tamilNadu, {billing_address['pincode']}")
 
     # If shipping address exists, print it, else skip
     shipping_address = customer_details.get('shipping_address')
     shipping_address = shipping_address or billing_address
     if shipping_address:
-        p.drawString(100*mm, height - 60*mm, "Ship To:")
-        p.drawString(100*mm, height - 65*mm, customer_details['name'])
-        p.drawString(100*mm, height - 70*mm, shipping_address['line1'])
+        p.drawString(100 * mm, height - 60 * mm, "Ship To:")
+        p.drawString(100 * mm, height - 65 * mm, customer_details['name'])
+        p.drawString(100 * mm, height - 70 * mm, shipping_address['line1'])
         if shipping_address.get('line2'):
-            p.drawString(100*mm, height - 75*mm, shipping_address['line2'])
-        p.drawString(100*mm, height - 80*mm,
+            p.drawString(100 * mm, height - 75 * mm, shipping_address['line2'])
+        p.drawString(100 * mm, height - 80 * mm,
                      f"{shipping_address['city']}, tamilNadu, {shipping_address['pincode']}")
 
     # Invoice Line Items Header
     p.setFont("Helvetica-Bold", 9)
-    p.drawString(30*mm, height - 100*mm, "Description")
-    p.drawString(110*mm, height - 100*mm, "Quantity")
-    p.drawString(140*mm, height - 100*mm, "Price")
-    p.drawString(170*mm, height - 100*mm, "Amount")
+    p.drawString(30 * mm, height - 100 * mm, "Description")
+    p.drawString(110 * mm, height - 100 * mm, "Quantity")
+    p.drawString(140 * mm, height - 100 * mm, "Price")
+    p.drawString(170 * mm, height - 100 * mm, "Amount")
 
     p.setFont("Helvetica", 9)
-    y_position = height - 105*mm
+    y_position = height - 105 * mm
     for item in invoice['line_items']:
-        p.drawString(30*mm, y_position, item['name'])
-        p.drawString(110*mm, y_position, str(item['quantity']))
-        p.drawString(140*mm, y_position, f"{invoice['currency_symbol']}{item['unit_amount']}")
-        p.drawString(170*mm, y_position, f"{invoice['currency_symbol']}{item['amount']}")
-        y_position -= 5*mm
+        p.drawString(30 * mm, y_position, item['name'])
+        p.drawString(110 * mm, y_position, str(item['quantity']))
+        p.drawString(140 * mm, y_position, f"{invoice['currency_symbol']}{item['unit_amount']}")
+        p.drawString(170 * mm, y_position, f"{invoice['currency_symbol']}{item['amount']}")
+        y_position -= 5 * mm
 
     # Invoice Summary
-    p.drawString(140*mm, y_position - 10*mm, "Total:")
-    p.drawString(170*mm, y_position - 10*mm, f"{invoice['currency_symbol']}{invoice['amount']}")
+    p.drawString(140 * mm, y_position - 10 * mm, "Total:")
+    p.drawString(170 * mm, y_position - 10 * mm, f"{invoice['currency_symbol']}{invoice['amount']}")
 
     # Draw a line to separate the summary section
     p.setStrokeColor(colors.black)
-    p.line(30*mm, y_position - 12*mm, 180*mm, y_position - 12*mm)
+    p.line(30 * mm, y_position - 12 * mm, 180 * mm, y_position - 12 * mm)
 
     # Footer
     p.setFont("Helvetica", 8)
     footer_text = "Thank you for your business!"
-    p.drawString(30*mm, 20*mm, footer_text)
+    p.drawString(30 * mm, 20 * mm, footer_text)
 
     # Close the PDF object cleanly
     p.showPage()
@@ -189,8 +190,11 @@ def mobile_number_validation_check(mobile_no):
 
 
 def generate_random_username():
-    """Generate a random username based on UUID."""
-    return str(uuid.uuid4()).replace("-", "")
+    """Generate a random username that starts with 'HHT' followed by a 5-digit number."""
+    # Generate a random number between 10000 and 99999
+    number = random.randint(10000, 99999)
+    # Return the username formatted as 'HHT' followed by the random number
+    return f'HHT{number}'
 
 
 def get_serialized_enum(enum, locale=None, field_name=None):

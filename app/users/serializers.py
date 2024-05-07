@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'mobile_no', 'user_type', 'created_at', 'updated_at', 'email',
+        fields = ['id', 'username', 'name', 'mobile_no', 'user_type', 'created_at', 'updated_at', 'email',
                   'is_active', 'last_login', 'date_joined']
 
     def get_user_type(self, obj):
