@@ -29,7 +29,7 @@ class User(AbstractUser):
     mobile_no = models.CharField(max_length=10, unique=True, validators=[
         RegexValidator(regex=r'^\d{10}$', message="Provide Proper 10 digit Phone Number")],
                                  db_index=True, blank=True, null=True)
-    user_type = models.IntegerField(choices=UserType.choices, blank=True, null=True)
+    user_type = models.IntegerField(choices=UserType.choices, default=UserType.MEMBER, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     favorites = models.ManyToManyField('products.Product', related_name='favorited_by', blank=True)
