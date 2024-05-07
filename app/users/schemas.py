@@ -28,10 +28,10 @@ class UserCreateSchema(BaseModel):
 
 # User Update Schema
 class UserUpdateSchema(BaseModel):
-    name: str
-    email: str
-    mobile_no: str
-    user_type: UserType
+    name: Optional[str]
+    email: Optional[str]
+    mobile_no: Optional[str]
+    user_type: Optional[UserType]
 
     # validator to trim  display number
     _validate_mobile_no = validator('mobile_no',

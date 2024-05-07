@@ -20,7 +20,8 @@ class Controller:
         try:
             instance = self.model.objects.get(id=instance_id)
             for attr, value in kwargs.items():
-                setattr(instance, attr, value)
+                if value:
+                    setattr(instance, attr, value)
             instance.save()
             return None, instance
         except (IntegrityError, ValueError) as e:
