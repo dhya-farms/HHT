@@ -18,17 +18,50 @@ if settings.DEBUG:
 else:
     router = SimpleRouter()
 
-router.register("users", UserViewSet, basename="users")
+# users login with phone numbers to get their tokens so that they can access all the APIs, still users can see
+# products without tokens, but they can only see.
 router.register("otp", OtpLoginViewSet, basename='otp')
-router.register("customers", CustomerViewSet, basename="customers")
+
+# After Login, we heve user model instance only with their mobile numbers and tokens, we need to update profile
+router.register("users", UserViewSet, basename="users")
+
+# while checkout or on profile page there will be  address page, user can add one or more address with address types one home one office many others
 router.register("addresses", AddressViewSet, basename="addresses")
+
+# list all the products and (add_to_favouries, remove_from_favouries, my-favourites) -> based on user
+router.register("products", ProductViewSet, basename="products")
+
+
+# list all variants based on product, (add_to_cart, remove_from_cart, increase_cart_item, decrease_cart_item) -> based on user
+router.register("product-variants", ProductVariantViewSet, basename="product-variants")
+
+# list cart items based on user id
+router.register("cart-items", CartItemViewSet, basename="cart-items")
+
+
+# create_order - will get address_id for shipping and billing for Order and create orders and order items and
+# also create order on razorpay table and will return
+# JsonResponse({
+#           'callback_url': f'{full_url}/hht/api/payments/handle-payment/',   - our own api
+#           "razorpay_key": settings.RAZOR_KEY_ID,
+#           "order_id": orderData['id']  - razorpay order's id
+#},
+# checkout - just show cart items added by user
+# handle_payment - refer https://medium.com/scalereal/razorpay-payment-gateway-integration-with-django-c422ba38f978
+# and Razor pay documentation for web integrations
+# once we process the payments and it successfull cart items got deleted from table and
+# we generate an invoice and store to AWS S3, please refer below orders
+router.register("payments", RazorpayViewSet, basename="payments")
+
+# invoice_link api
+router.register("orders", OrderViewSet, basename="orders")
+
+
+router.register("customers", CustomerViewSet, basename="customers")
 router.register("wishlists", WishlistViewSet, basename="wishlists")
 router.register("wishlist-items", WishlistItemViewSet, basename="wishlist-items")
 router.register("reviews", ReviewViewSet, basename="reviews")
-router.register("cart-items", CartItemViewSet, basename="cart-items")
-router.register("orders", OrderViewSet, basename="orders")
 router.register("order-items", OrderItemViewSet, basename="order-items")
-router.register("payments", RazorpayViewSet, basename="payments")
 # router.register("payments", PaymentViewSet, basename="payments")
 router.register("returns", ReturnViewSet, basename="returns")
 router.register("refunds", RefundViewSet, basename="refunds")
@@ -41,8 +74,6 @@ router.register("collections", CollectionViewSet, basename="collections")
 router.register("suppliers", SupplierViewSet, basename="suppliers")
 router.register("tags", TagViewSet, basename="tags")
 router.register("coupons", CouponViewSet, basename="coupons")
-router.register("products", ProductViewSet, basename="products")
-router.register("product-variants", ProductVariantViewSet, basename="product-variants")
 router.register("product-images", ProductImageViewSet, basename="product-images")
 router.register("attributes", AttributeViewSet, basename="attributes")
 router.register("attribute-values", AttributeValueViewSet, basename="attribute-values")
