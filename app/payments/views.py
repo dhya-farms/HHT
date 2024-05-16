@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from app.customers.controllers import CartItemController
 from app.customers.serializers import CartItemSerializer, AddressSerializer
@@ -16,6 +17,7 @@ from app.payments.schemas import PaymentCreateSchema, PaymentUpdateSchema, Payme
     ReturnUpdateSchema, ReturnListSchema, RefundCreateSchema, RefundUpdateSchema, RefundListSchema, \
     ReturnItemCreateSchema, ReturnItemUpdateSchema, ReturnItemListSchema
 from app.payments.serializers import PaymentSerializer, ReturnSerializer, RefundSerializer, ReturnItemSerializer
+from app.shippings.models import PincodeAvailability, ShippingRate
 from app.utils.constants import CacheKeys
 from app.customers.models import CartItem, Address
 from app.orders.models import Order, OrderItem
@@ -33,8 +35,7 @@ class RazorpayViewSet(viewsets.ViewSet):
         billing_address_id = request.data.get('billing_address_id', None)
         cart_items = user.cart_items.all()
         total_amount = sum(item.product_variant.buying_price * item.quantity for item in cart_items)
-        shipping_address = Address.objects.get(shipping_address_id)
-
+        shipping_address = Address.objects.get(pk=shipping_address_id)
 
         try:
             with transaction.atomic():
@@ -51,25 +52,25 @@ class RazorpayViewSet(viewsets.ViewSet):
                         quantity=cart_item.quantity,
                         price=cart_item.product_variant.buying_price * cart_item.quantity
                     )
-            payment_data = {
-                'amount': int(total_amount * 100),
-                'currency': 'INR',
-                'receipt': f'order_{order.id}',
-                'payment_capture': '1'
-            }
-            orderData = self.client.order.create(data=payment_data)
-            order.razorpay_order_id = orderData['id']
-            order.save()
+                payment_data = {
+                    'amount': int(total_amount * 100),
+                    'currency': 'INR',
+                    'receipt': f'order_{order.id}',
+                    'payment_capture': '1'
+                }
+                orderData = self.client.order.create(data=payment_data)
+                order.razorpay_order_id = orderData['id']
+                order.save()
 
-            domain = request.get_host()
-            scheme = request.scheme
-            full_url = f'{scheme}://{domain}'
+                domain = request.get_host()
+                scheme = request.scheme
+                full_url = f'{scheme}://{domain}'
 
-            return JsonResponse({
-                'callback_url': f'{full_url}/hht/api/payments/handle-payment/',
-                "razorpay_key": settings.RAZOR_KEY_ID,
-                "order_id": orderData['id']
-            }, status=status.HTTP_201_CREATED)
+                return JsonResponse({
+                    'callback_url': f'{full_url}/hht/api/payments/handle-payment/',
+                    "razorpay_key": settings.RAZOR_KEY_ID,
+                    "order_id": orderData['id']
+                }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             print(str(e))
@@ -77,20 +78,31 @@ class RazorpayViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['post'], url_path='checkout')
     def checkout(self, request, *args, **kwargs):
+        shipping_address_id = request.data.get('shipping_address_id', None)
+        shipping_rate = None
+        if shipping_address_id:
+            shipping_address: Address = Address.objects.get(pk=shipping_address_id)
+            try:
+                availability = PincodeAvailability.objects.get(pincode=shipping_address.pincode)
+            except PincodeAvailability.DoesNotExist:
+                return Response({'pincode': shipping_address.pincode, 'is_available': False}, status=status.HTTP_404_NOT_FOUND)
+            if availability:
+                try:
+                    shipping_rate = ShippingRate.objects.get(pincode=shipping_address.pincode)
+                except ShippingRate.DoesNotExist:
+                    return Response({'error': 'Shipping information not available for this pincode'},
+                                    status=status.HTTP_404_NOT_FOUND)
         cart_items = CartItem.objects.filter(user=request.user)
         # total_amount = sum(item.price * item.quantity for item in cart_items)
         total_amount = sum(item.product_variant.buying_price * item.quantity for item in cart_items)
 
         cart_count = cart_items.count()
-        email = request.user.email
-        full_name = request.user.name
 
         context = {
             'cart_count': cart_count,
             'cart_items': CartItemController().serialize_queryset(cart_items, serializer_override=CartItemSerializer),
             'total_amount': total_amount,
-            'email': email,
-            'full_name': full_name
+            'shipping_charges': shipping_rate.rate if shipping_rate else None
         }
         return JsonResponse(data=context, status=200)
 
