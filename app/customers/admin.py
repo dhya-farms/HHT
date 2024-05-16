@@ -74,5 +74,5 @@ class ReviewAdmin(admin.ModelAdmin):
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
-    list_display = ('user', 'product_variant', 'quantity', 'price', 'added_at')
+    list_display = ('user', 'product_variant', 'quantity', 'added_at')
     search_fields = ('product_variant__name',)

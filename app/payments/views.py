@@ -49,8 +49,7 @@ class RazorpayViewSet(viewsets.ViewSet):
                         order=order,
                         product_variant=cart_item.product_variant,
                         quantity=cart_item.quantity,
-                        price=cart_item.price * cart_item.quantity,
-                        # price=cart_item.product_variant.buying_price * cart_item.quantity
+                        price=cart_item.product_variant.buying_price * cart_item.quantity
                     )
             payment_data = {
                 'amount': int(total_amount * 100),
