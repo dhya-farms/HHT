@@ -102,11 +102,6 @@ class ProductVariantController(Controller):
             cart_item, item_created = CartItem.objects.get_or_create(user=user,
                                                                      product_variant=product_variant)
 
-            if not item_created:
-                cart_item.quantity += 1
-                cart_item.save()
-            else:
-                cart_item.price = product_variant.buying_price
             return None, cart_item
         except (IntegrityError, ValueError) as e:
             return get_serialized_exception(e)
@@ -134,7 +129,7 @@ class ProductVariantController(Controller):
                 cart_item.quantity += 1
                 cart_item.save()
             else:
-                cart_item.price = product_variant.buying_price
+                pass
             return None, cart_item
         except (IntegrityError, ValueError) as e:
             return get_serialized_exception(e)

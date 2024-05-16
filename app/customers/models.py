@@ -61,7 +61,6 @@ class CartItem(models.Model):
     user = models.ForeignKey("users.User",  blank=True, null=True, on_delete=models.CASCADE, related_name='cart_items')
     product_variant = models.ForeignKey('products.ProductVariant', on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     added_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
