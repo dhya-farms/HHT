@@ -503,8 +503,7 @@ class ProductViewSet(BaseViewSet):
         description="Retrieve a specific Product by Slug",
         responses={200: ProductSerializer}
     )
-    def retrieve(self, request, *args, **kwargs):
-        slug = kwargs.get('slug')
+    def retrieve(self, request, *args, slug=None):
         instance, cache_key = None, ""
         if self.cache_key_retrieve.value:
             cache_key = self.cache_key_retrieve.value.format(slug=slug)
