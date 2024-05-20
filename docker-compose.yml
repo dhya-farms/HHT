@@ -1,0 +1,29 @@
+version: '3.7'
+
+services:
+  web:
+    build: .
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    env_file:
+      - path: ./local_cont.env
+    # extra_hosts:
+    #   - "host.docker.internal:<docker0 >"
+
+  redis:
+    image: redis:6.0
+
+  celery:
+    build: .
+    command: celery -A config.celery_app:app worker --loglevel=info 
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+    env_file:
+      - path: ./local_cont.env
