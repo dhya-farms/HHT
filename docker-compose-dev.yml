@@ -11,7 +11,7 @@ services:
     depends_on:
       - redis
     env_file:
-      - path: ./prod.env
+      - path: ./local_cont.env
     # extra_hosts:
     #   - "host.docker.internal:<docker0 >"
 
@@ -26,4 +26,4 @@ services:
     depends_on:
       - redis
     env_file:
-      - path: ./prod.env
+      - path: ./local_cont.env

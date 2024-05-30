@@ -8,10 +8,10 @@ from app.users.enums import UserType
 from django.utils.translation import gettext_lazy as _
 
 from app.utils.helpers import generate_random_username
-
+import uuid
 
 class User(AbstractUser):
-
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username_validator = UnicodeUsernameValidator()
 
     name = models.CharField(max_length=255)
